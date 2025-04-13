@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>케플러 시뮬레이션</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.4.2/lib/p5.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      color: #fff;
+      font-family: '맑은 고딕', sans-serif;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    canvas {
+      box-shadow: 0 0 20px #00ffff;
+    }
+  </style>
+</head>
+<body>
+
+<script>
+let planet, sun, G = 600;
+let speedSlider, distanceSlider;
+let started = false;
+let result = "";
+let startDistance, orbitalPeriod = 0, frameCounter = 0;
+let areaSlices = [];
+let areaTime = 0;
+
+function setup() {
+  let canvas = createCanvas(800, 800); // 캔버스를 더 크게 만들기
+  canvas.parent(document.body);
+
+  speedSlider = createSlider(10, 50, 30);
+  speedSlider.position(20, 20);
+
+  distanceSlider = createSlider(50, 200, 100);
+  distanceSlider.position(20, 50);
+
+  speedSlider.input(() => resetPlanet());
+  distanceSlider.input(() => resetPlanet());
+
+  sun = createVector(width / 2, height / 2);
+  resetPlanet();
+}
+
+function resetPlanet() {
+  started = true;
+  frameCounter = 0;
+  orbitalPeriod = 0;
+  areaSlices = [];
+  areaTime = 0;
+
+  let speed = speedSlider.value() / 10;
+  startDistance = distanceSlider.value();
+
+  planet = {
+    pos: createVector(width / 2 + startDistance, height / 2),
+    vel: createVector(0, -speed),
+    path: [],
+    lastPosX: null,
+    revolutions: 0
+  };
+
+  if (speed < 2.5) result = "행성이 태양으로 떨어져요 (낙하)";
+  else if (speed >= 2.5 && speed <= 3.5) result = "안정된 궤도! (공전 중)";
+  else result = "속도가 너무 빨라서 우주로 날아가요 (탈출)";
+}
+
+function draw() {
+  background(0);
+  fill(255, 204, 0);
+  ellipse(sun.x, sun.y, 30, 30); // 태양
+
+  if (!started) return;
+
+  let force = p5.Vector.sub(sun, planet.pos);
+  let distSq = constrain(force.magSq(), 100, 50000);
+  let strength = G / distSq;
+  force.setMag(strength);
+  planet.vel.add(force);
+  planet.pos.add(planet.vel);
+
+  planet.path.push(planet.pos.copy());
+  if (planet.path.length > 500) planet.path.shift();
+  noFill();
+  stroke(0, 255, 255);
+  beginShape();
+  for (let p of planet.path) vertex(p.x, p.y);
+  endShape();
+
+  fill(255);
+  ellipse(planet.pos.x, planet.pos.y, 10, 10);
+
+  fill(255);
+  textSize(16);
+  text("속도: " + nf(speedSlider.value() / 10, 1, 1), 20, 90);
+  text("거리: " + startDistance, 20, 110);
+
+  if (planet.lastPosX !== null &&
+      planet.lastPosX < width / 2 && planet.pos.x >= width / 2) {
+    orbitalPeriod = frameCounter / 60.0;
+    frameCounter = 0;
+  }
+  planet.lastPosX = planet.pos.x;
+  frameCounter++;
+
+  if (orbitalPeriod > 0) {
+    text("주기 추정: " + nf(orbitalPeriod, 1, 2) + " 초", 20, 130);
+  }
+
+  text(result, 20, 160);
+
+  // 케플러 제2법칙 - 면적 시각화
+  areaTime++;
+  if (areaTime % 30 === 0) {
+    areaSlices.push(planet.pos.copy());
+    if (areaSlices.length > 2) areaSlices.shift();
+  }
+  if (areaSlices.length === 2) {
+    fill(255, 255, 0, 100);
+    noStroke();
+    beginShape();
+    vertex(sun.x, sun.y);
+    vertex(areaSlices[0].x, areaSlices[0].y);
+    vertex(areaSlices[1].x, areaSlices[1].y);
+    endShape(CLOSE);
+  }
+}
+</script>
+
+</body>
+</html>
